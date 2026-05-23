@@ -1,0 +1,15 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "crons": [
+    {
+      "path": "/api/beautyscore",
+      "schedule": "0 21 * * 0"
+    },
+    {
+      "path": "/api/aicfo",
+      "schedule": "0 10 * * *"
+    }
+  ]
+}

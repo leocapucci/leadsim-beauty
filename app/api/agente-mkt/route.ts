@@ -26,6 +26,7 @@ async function proxyRequest(path: string, options: RequestInit) {
   return NextResponse.json(data);
 }
 
+// POST /api/agente-mkt → inicia campanha, retorna job_id imediatamente
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest) {
       method: "POST",
       body: JSON.stringify({
         tema: body.tema,
-        formatos: body.formatos || ["instagram", "email", "whatsapp"],
+        formatos: body.formatos || ["instagram", "whatsapp"],
         clinica_id: body.clinica_id || null,
         clinica_nome: body.clinica_nome || null,
       }),
@@ -51,11 +52,20 @@ export async function POST(req: NextRequest) {
   }
 }
 
+// GET /api/agente-mkt?job_id=xxx → polling de status
+// GET /api/agente-mkt → lista histórico
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
+  const job_id = searchParams.get("job_id");
+
+  // Polling de status de um job específico
+  if (job_id) {
+    return await proxyRequest(`/campanha/status/${job_id}`, { method: "GET" });
+  }
+
+  // Lista histórico
   const clinica_id = searchParams.get("clinica_id") || "";
   const limite = searchParams.get("limite") || "20";
-
   const params = new URLSearchParams({ limite });
   if (clinica_id) params.set("clinica_id", clinica_id);
 

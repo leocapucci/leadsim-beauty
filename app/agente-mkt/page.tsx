@@ -139,13 +139,10 @@ export default function AgenteMktPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao gerar imagens");
 
-      // Atualiza o job atual com as imagens
-      const jobAtualizado = jobVisivel ? { ...jobVisivel, imagens: data.imagens } : null;
-      if (jobAtualizado) {
-        setJobAtual(jobAtualizado);
-        setAbaCampanha("imagens");
-      }
-      await carregarHistorico();
+      // Atualiza apenas o campo imagens, sem substituir o objeto inteiro
+      setJobAtual((prev) => prev?.id === job_id ? { ...prev, imagens: data.imagens } : prev);
+      setHistorico((prev) => prev.map((j) => j.id === job_id ? { ...j, imagens: data.imagens } : j));
+      setAbaCampanha("imagens");
     } catch (e: any) {
       setErro(e.message);
     } finally {

@@ -1,4 +1,4 @@
-"use client";
+﻿use client;
 
 import { useState, useEffect, useRef } from "react";
 
@@ -31,15 +31,16 @@ const FORMATOS: { id: Formato; label: string; icon: string }[] = [
   { id: "instagram", label: "Instagram", icon: "📸" },
   { id: "email", label: "E-mail", icon: "✉️" },
   { id: "whatsapp", label: "WhatsApp", icon: "💬" },
-  { id: "stories", label: "Stories", icon: "🎬" },
+  { id: "stories", label: "Stories", icon: "🎞️" },
 ];
 
-const ETAPAS = ["Pesquisando mercado", "Gerando conteúdo", "Gerando imagens", "Revisando"];
+const ETAPAS = ["Pesquisando mercado", "Gerando conteúdo", "Revisando"];
 
 export default function AgenteMktPage() {
   const [tema, setTema] = useState("");
   const [formatos, setFormatos] = useState<Formato[]>(["instagram", "whatsapp"]);
   const [loading, setLoading] = useState(false);
+  const [loadingImagens, setLoadingImagens] = useState(false);
   const [etapaIdx, setEtapaIdx] = useState(0);
   const [jobAtual, setJobAtual] = useState<Job | null>(null);
   const [historico, setHistorico] = useState<Job[]>([]);
@@ -87,11 +88,7 @@ export default function AgenteMktPage() {
           setLoading(false);
           setEtapaIdx(0);
           if (etapaRef.current) clearInterval(etapaRef.current);
-          if (job.imagens && Object.keys(job.imagens).length > 0) {
-            setAbaCampanha("imagens");
-          } else {
-            setAbaCampanha("conteudo");
-          }
+          setAbaCampanha("conteudo");
           await carregarHistorico();
         } else if (job.status === "erro") {
           clearInterval(pollingRef.current!);
@@ -114,7 +111,7 @@ export default function AgenteMktPage() {
 
     etapaRef.current = setInterval(() => {
       setEtapaIdx((prev) => (prev < ETAPAS.length - 1 ? prev + 1 : prev));
-    }, 25000);
+    }, 30000);
 
     try {
       const res = await fetch("/api/agente-mkt", {
@@ -130,6 +127,29 @@ export default function AgenteMktPage() {
       setLoading(false);
       setEtapaIdx(0);
       if (etapaRef.current) clearInterval(etapaRef.current);
+    }
+  }
+
+  async function gerarImagens(job_id: string) {
+    setLoadingImagens(true);
+    try {
+      const res = await fetch(`/api/agente-mkt?action=imagens&job_id=${job_id}`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao gerar imagens");
+
+      // Atualiza o job atual com as imagens
+      const jobAtualizado = jobVisivel ? { ...jobVisivel, imagens: data.imagens } : null;
+      if (jobAtualizado) {
+        setJobAtual(jobAtualizado);
+        setAbaCampanha("imagens");
+      }
+      await carregarHistorico();
+    } catch (e: any) {
+      setErro(e.message);
+    } finally {
+      setLoadingImagens(false);
     }
   }
 
@@ -162,7 +182,7 @@ export default function AgenteMktPage() {
         <div style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(135deg, #7C5CBF, #4f8ef7)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>✦</div>
         <div>
           <div style={{ fontWeight: 600, fontSize: 15 }}>Agente de Marketing</div>
-          <div style={{ fontSize: 12, color: "#666", marginTop: 1 }}>LeadSim Beauty · IA multi-agente</div>
+          <div style={{ fontSize: 12, color: "#666", marginTop: 1 }}>LeadSim Beauty — IA multi-agente</div>
         </div>
         <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
           {ETAPAS.map((e, i) => (
@@ -182,21 +202,31 @@ export default function AgenteMktPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div>
               <label style={{ fontSize: 11, color: "#555", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 8 }}>Tema da campanha</label>
-              <textarea value={tema} onChange={(e) => setTema(e.target.value)} placeholder="ex: bioestimuladores para rejuvenescimento facial..." rows={3}
+              <textarea value={tema} onChange={(e) => setTema(e.target.value)}
+                placeholder="ex: bioestimuladores para rejuvenescimento facial..." rows={3}
                 style={{ width: "100%", boxSizing: "border-box", background: "#16161c", border: "1px solid #2a2a32", borderRadius: 10, padding: "12px 14px", color: "#e8e6e1", fontSize: 14, resize: "none", outline: "none", lineHeight: 1.5, fontFamily: "inherit" }}
-                onFocus={(e) => e.target.style.borderColor = "#7C5CBF"} onBlur={(e) => e.target.style.borderColor = "#2a2a32"} />
+                onFocus={(e) => e.target.style.borderColor = "#7C5CBF"}
+                onBlur={(e) => e.target.style.borderColor = "#2a2a32"} />
             </div>
             <div>
               <label style={{ fontSize: 11, color: "#555", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 10 }}>Formatos</label>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                 {FORMATOS.map((f) => (
-                  <button key={f.id} onClick={() => toggleFormato(f.id)} style={{ padding: "7px 14px", borderRadius: 8, fontSize: 13, cursor: "pointer", background: formatos.includes(f.id) ? "#7C5CBF22" : "#16161c", border: `1px solid ${formatos.includes(f.id) ? "#7C5CBF" : "#2a2a32"}`, color: formatos.includes(f.id) ? "#a68fe0" : "#666", transition: "all 0.2s" }}>
-                    {f.icon} {f.label}
-                  </button>
+                  <button key={f.id} onClick={() => toggleFormato(f.id)} style={{
+                    padding: "7px 14px", borderRadius: 8, fontSize: 13, cursor: "pointer",
+                    background: formatos.includes(f.id) ? "#7C5CBF22" : "#16161c",
+                    border: `1px solid ${formatos.includes(f.id) ? "#7C5CBF" : "#2a2a32"}`,
+                    color: formatos.includes(f.id) ? "#a68fe0" : "#666", transition: "all 0.2s",
+                  }}>{f.icon} {f.label}</button>
                 ))}
               </div>
             </div>
-            <button onClick={gerarCampanha} disabled={loading || !tema.trim()} style={{ padding: "13px", borderRadius: 10, fontWeight: 600, fontSize: 14, cursor: loading || !tema.trim() ? "not-allowed" : "pointer", background: loading || !tema.trim() ? "#1a1a20" : "linear-gradient(135deg, #7C5CBF, #4f8ef7)", border: "none", color: loading || !tema.trim() ? "#444" : "#fff", transition: "all 0.2s" }}>
+            <button onClick={gerarCampanha} disabled={loading || !tema.trim()} style={{
+              padding: "13px", borderRadius: 10, fontWeight: 600, fontSize: 14,
+              cursor: loading || !tema.trim() ? "not-allowed" : "pointer",
+              background: loading || !tema.trim() ? "#1a1a20" : "linear-gradient(135deg, #7C5CBF, #4f8ef7)",
+              border: "none", color: loading || !tema.trim() ? "#444" : "#fff", transition: "all 0.2s",
+            }}>
               {loading ? (
                 <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
                   <span style={{ display: "inline-block", width: 14, height: 14, border: "2px solid #666", borderTopColor: "#a68fe0", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
@@ -212,11 +242,17 @@ export default function AgenteMktPage() {
             <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6 }}>
               {historico.length === 0 && <div style={{ fontSize: 13, color: "#333", textAlign: "center", paddingTop: 20 }}>Nenhuma campanha ainda</div>}
               {historico.map((j) => (
-                <button key={j.id} onClick={() => { setJobSelecionado(j.id); setJobAtual(null); }} style={{ textAlign: "left", padding: "10px 12px", borderRadius: 8, cursor: "pointer", background: jobSelecionado === j.id ? "#16161c" : "transparent", border: `1px solid ${jobSelecionado === j.id ? "#2a2a32" : "transparent"}`, color: "inherit", transition: "all 0.15s" }}>
+                <button key={j.id} onClick={() => { setJobSelecionado(j.id); setJobAtual(null); }} style={{
+                  textAlign: "left", padding: "10px 12px", borderRadius: 8, cursor: "pointer",
+                  background: jobSelecionado === j.id ? "#16161c" : "transparent",
+                  border: `1px solid ${jobSelecionado === j.id ? "#2a2a32" : "transparent"}`,
+                  color: "inherit", transition: "all 0.15s",
+                }}>
                   <div style={{ fontSize: 13, fontWeight: 500, color: "#ccc", marginBottom: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{j.tema}</div>
                   <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                     {j.score ? <span style={{ fontSize: 11, color: j.score >= 8 ? "#5a9e6f" : "#9e855a" }}>★ {j.score}/10</span> : null}
                     <span style={{ fontSize: 11, color: "#444" }}>{new Date(j.criado_em).toLocaleDateString("pt-BR")}</span>
+                    {j.imagens && Object.keys(j.imagens).length > 0 && <span style={{ fontSize: 11, color: "#5a9e6f" }}>🖼</span>}
                   </div>
                 </button>
               ))}
@@ -240,7 +276,7 @@ export default function AgenteMktPage() {
               </div>
               <div style={{ textAlign: "center" }}>
                 <div style={{ fontSize: 15, fontWeight: 500, color: "#ccc" }}>{ETAPAS[etapaIdx]}</div>
-                <div style={{ fontSize: 13, color: "#444", marginTop: 6 }}>Processando em background · pode levar alguns minutos</div>
+                <div style={{ fontSize: 13, color: "#444", marginTop: 6 }}>Processando em background — pode levar alguns minutos</div>
               </div>
             </div>
           )}
@@ -256,7 +292,19 @@ export default function AgenteMktPage() {
                     {temImagens && <span style={{ fontSize: 12, color: "#5a9e6f" }}>· 🖼 {Object.keys(imagensJob).length} imagem(ns)</span>}
                   </div>
                 </div>
-                <div style={{ display: "flex", gap: 8 }}>
+                <div style={{ display: "flex", gap: 8, flexShrink: 0, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                  {!temImagens && (
+                    <button onClick={() => gerarImagens(jobVisivel.id)} disabled={loadingImagens} style={{
+                      padding: "8px 16px", borderRadius: 8, fontSize: 13, cursor: loadingImagens ? "not-allowed" : "pointer",
+                      background: loadingImagens ? "#1a1a20" : "#1a1a2e",
+                      border: "1px solid #4f8ef7", color: loadingImagens ? "#444" : "#4f8ef7",
+                      transition: "all 0.2s", display: "flex", alignItems: "center", gap: 6,
+                    }}>
+                      {loadingImagens ? (
+                        <><span style={{ display: "inline-block", width: 12, height: 12, border: "2px solid #444", borderTopColor: "#4f8ef7", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} /> Gerando...</>
+                      ) : "🖼 Gerar Imagens (~$0,04)"}
+                    </button>
+                  )}
                   <button onClick={() => copiar(jobVisivel.conteudo_final || "", "main")} style={{ padding: "8px 16px", borderRadius: 8, fontSize: 13, cursor: "pointer", background: copiado === "main" ? "#1a2a1a" : "#16161c", border: `1px solid ${copiado === "main" ? "#3a6a3a" : "#2a2a32"}`, color: copiado === "main" ? "#5a9e6f" : "#888" }}>
                     {copiado === "main" ? "✓ Copiado" : "Copiar"}
                   </button>
@@ -271,12 +319,19 @@ export default function AgenteMktPage() {
                   { id: "briefing", label: "Briefing" },
                   { id: "revisao", label: "Revisão" },
                 ].map((aba) => (
-                  <button key={aba.id} onClick={() => setAbaCampanha(aba.id as any)} style={{ flex: 1, padding: "8px 12px", borderRadius: 8, fontSize: 13, cursor: "pointer", background: abaCampanha === aba.id ? "#0e0e11" : "transparent", border: `1px solid ${abaCampanha === aba.id ? "#2a2a32" : "transparent"}`, color: abaCampanha === aba.id ? "#ccc" : "#555", fontFamily: "inherit" }}>{aba.label}</button>
+                  <button key={aba.id} onClick={() => setAbaCampanha(aba.id as any)} style={{
+                    flex: 1, padding: "8px 12px", borderRadius: 8, fontSize: 13, cursor: "pointer",
+                    background: abaCampanha === aba.id ? "#0e0e11" : "transparent",
+                    border: `1px solid ${abaCampanha === aba.id ? "#2a2a32" : "transparent"}`,
+                    color: abaCampanha === aba.id ? "#ccc" : "#555", fontFamily: "inherit",
+                  }}>{aba.label}</button>
                 ))}
               </div>
 
               <div style={{ background: "#16161c", border: "1px solid #1e1e24", borderRadius: 12, padding: "24px 28px", minHeight: 300 }}>
-                {abaCampanha === "conteudo" && <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.75, fontSize: 14, color: "#c8c4be" }}>{jobVisivel.conteudo_final}</div>}
+                {abaCampanha === "conteudo" && (
+                  <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.75, fontSize: 14, color: "#c8c4be" }}>{jobVisivel.conteudo_final}</div>
+                )}
 
                 {abaCampanha === "imagens" && temImagens && (
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 20 }}>
@@ -297,7 +352,9 @@ export default function AgenteMktPage() {
                   </div>
                 )}
 
-                {abaCampanha === "briefing" && <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.75, fontSize: 14, color: "#c8c4be" }}>{jobVisivel.briefing}</div>}
+                {abaCampanha === "briefing" && (
+                  <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.75, fontSize: 14, color: "#c8c4be" }}>{jobVisivel.briefing}</div>
+                )}
 
                 {abaCampanha === "revisao" && (
                   <div>

@@ -15,6 +15,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const { job_id, briefing, formato } = await req.json();
+    console.log("INICIO GERAR IMAGENS", { job_id, briefing: briefing?.slice(0, 50), formato });
 
     if (!job_id || !briefing || !formato) {
       return NextResponse.json(
@@ -82,6 +83,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ job_id, formato, url, imagens: imagensAtualizadas });
 
   } catch (err: any) {
+    console.error("ERRO CATCH:", err?.message, err?.stack);
     console.error("ERRO GERAR IMAGENS:", JSON.stringify(err), err.message, err.stack);
     return NextResponse.json({ error: err.message || "Erro interno", stack: err.stack }, { status: 500 });
   }

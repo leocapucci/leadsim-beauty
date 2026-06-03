@@ -140,13 +140,16 @@ export default function AgenteMktPage() {
 
       // 1. Chama /api/gerar-imagens para cada formato em paralelo
       const resultados = await Promise.all(
-        formatos.map((formato) =>
-          fetch("/api/gerar-imagens", {
+        formatos.map(async (formato) => {
+          const r = await fetch("/api/gerar-imagens", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ job_id, briefing, formato }),
-          }).then((r) => r.json())
-        )
+          });
+          const data = await r.json();
+          if (!r.ok) throw new Error(data.error || `Erro ao gerar imagem para ${formato}`);
+          return data;
+        })
       );
 
       // Verifica se alguma resposta indica fire-and-forget do backend legado

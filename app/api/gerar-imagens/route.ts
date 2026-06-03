@@ -46,18 +46,25 @@ export async function POST(req: NextRequest) {
         n: 1,
         size: "1024x1024",
         quality: "low",
+        response_format: "url",
       }),
     });
 
+    const openaiData = await openaiRes.json();
+
     if (!openaiRes.ok) {
-      const err = await openaiRes.json();
-      return NextResponse.json(
-        { error: err.error?.message || "Erro OpenAI" },
-        { status: openaiRes.status }
-      );
+      const errMsg = openaiData?.error?.message || JSON.stringify(openaiData) || "Erro OpenAI";
+      console.error("OPENAI ERROR:", openaiRes.status, errMsg);
+      return NextResponse.json({ error: errMsg }, { status: openaiRes.status });
     }
 
-    const { data: [{ url }] } = await openaiRes.json();
+    const item = openaiData.data?.[0];
+    if (!item) {
+      console.error("OPENAI sem data:", JSON.stringify(openaiData));
+      throw new Error("OpenAI não retornou imagem");
+    }
+    const url: string = item.url ?? (item.b64_json ? `data:image/png;base64,${item.b64_json}` : null);
+    if (!url) throw new Error("OpenAI não retornou url nem b64_json");
 
     // Busca imagens existentes e faz merge (não sobrescreve outros formatos)
     const sb = createClient(SUPABASE_URL, SUPABASE_KEY);

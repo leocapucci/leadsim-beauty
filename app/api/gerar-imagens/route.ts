@@ -1,4 +1,7 @@
 // app/api/gerar-imagens/route.ts
+// ✅ ESTÁVEL - não modificar sem aprovação explícita
+// Modelo: gpt-image-2, quality: low, sem response_format
+// Chave: process.env.Agentsleadsimopenai
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 

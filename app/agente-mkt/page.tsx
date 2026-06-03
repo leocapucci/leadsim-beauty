@@ -133,19 +133,41 @@ export default function AgenteMktPage() {
   async function gerarImagens(job_id: string) {
     setLoadingImagens(true);
     try {
+      // 1. Dispara a geração (retorna imediatamente com status "gerando")
       const res = await fetch(`/api/agente-mkt?action=imagens&job_id=${job_id}`, {
         method: "POST",
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao gerar imagens");
 
-      // Atualiza apenas o campo imagens, sem substituir o objeto inteiro
+      // 2. Se fire-and-forget, inicia polling até "imagens" aparecer no job
+      if (data.status === "gerando") {
+        const poll = setInterval(async () => {
+          try {
+            const r = await fetch(`/api/agente-mkt?job_id=${job_id}`);
+            if (!r.ok) return;
+            const job: Job = await r.json();
+            if (job.imagens && Object.keys(job.imagens).length > 0) {
+              clearInterval(poll);
+              setJobAtual((prev) => prev?.id === job_id ? { ...prev, imagens: job.imagens } : prev);
+              setHistorico((prev) => prev.map((j) => j.id === job_id ? { ...j, imagens: job.imagens } : j));
+              setAbaCampanha("imagens");
+              setLoadingImagens(false);
+            }
+          } catch {}
+        }, 5000);
+        return; // não executa o finally ainda — loading fica ativo durante polling
+      }
+
+      // 3. Fallback: resposta síncrona (caso o endpoint volte a ser bloqueante)
       setJobAtual((prev) => prev?.id === job_id ? { ...prev, imagens: data.imagens } : prev);
       setHistorico((prev) => prev.map((j) => j.id === job_id ? { ...j, imagens: data.imagens } : j));
       setAbaCampanha("imagens");
     } catch (e: any) {
       setErro(e.message);
     } finally {
+      // só desliga loading aqui se não entrou no polling (que gerencia o próprio loading)
+      if (!loadingImagens) return;
       setLoadingImagens(false);
     }
   }

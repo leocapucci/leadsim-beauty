@@ -9,14 +9,14 @@ const PROMPT_TEMPLATE = (briefing: string) =>
   `Campaign context: ${briefing.slice(0, 400)}`;
 
 export async function POST(req: NextRequest) {
-  const OPENAI_KEY   = process.env.OPENAI_API_KEY!;
+  const OPENAI_KEY   = process.env.Agentsleadsimopenai!;
   const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
   try {
     const { job_id, briefing, formato } = await req.json();
     console.log("INICIO GERAR IMAGENS", { job_id, briefing: briefing?.slice(0, 50), formato });
-    console.log("OPENAI_KEY presente:", !!process.env.OPENAI_API_KEY, "tamanho:", process.env.OPENAI_API_KEY?.length);
+    console.log("OPENAI_KEY presente:", !!process.env.Agentsleadsimopenai, "tamanho:", process.env.Agentsleadsimopenai?.length);
 
     if (!job_id || !briefing || !formato) {
       return NextResponse.json(

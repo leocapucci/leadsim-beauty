@@ -65,11 +65,38 @@ export async function POST(req: NextRequest) {
       console.error("OPENAI sem data:", JSON.stringify(openaiData));
       throw new Error("OpenAI não retornou imagem");
     }
-    const url: string = item.url ?? (item.b64_json ? `data:image/png;base64,${item.b64_json}` : null);
-    if (!url) throw new Error("OpenAI não retornou url nem b64_json");
+    if (!item.url && !item.b64_json) throw new Error("OpenAI não retornou url nem b64_json");
+
+    // Converte para Buffer para upload no Supabase Storage
+    let imageBuffer: Buffer;
+    if (item.b64_json) {
+      imageBuffer = Buffer.from(item.b64_json, "base64");
+    } else {
+      const imgRes = await fetch(item.url);
+      imageBuffer = Buffer.from(await imgRes.arrayBuffer());
+    }
+
+    const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // Upload para Supabase Storage — URL pública permanente
+    const storagePath = `${job_id}/${formato}.png`;
+    const { error: uploadError } = await sb.storage
+      .from("imagens-campanha")
+      .upload(storagePath, imageBuffer, { contentType: "image/png", upsert: true });
+
+    if (uploadError) {
+      console.error("STORAGE UPLOAD ERROR:", uploadError.message);
+      throw new Error(`Erro ao fazer upload da imagem: ${uploadError.message}`);
+    }
+
+    const { data: { publicUrl: url } } = sb.storage
+      .from("imagens-campanha")
+      .getPublicUrl(storagePath);
+
+    console.log("IMAGEM SALVA NO STORAGE:", url);
 
     // Busca imagens existentes e faz merge (não sobrescreve outros formatos)
-    const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
     const { data: row } = await sb
       .from("jobs_campanha")
       .select("imagens")

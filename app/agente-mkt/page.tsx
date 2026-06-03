@@ -131,18 +131,27 @@ export default function AgenteMktPage() {
   }
 
   async function gerarImagens(job_id: string) {
+    if (!jobVisivel) return;
     setLoadingImagens(true);
     let pollingStarted = false;
     try {
-      // 1. Dispara a geração (retorna imediatamente com status "gerando")
-      const res = await fetch(`/api/agente-mkt?action=imagens&job_id=${job_id}`, {
-        method: "POST",
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Erro ao gerar imagens");
+      const formatos = jobVisivel.formatos || [];
+      const briefing = jobVisivel.briefing || "";
 
-      // 2. Se fire-and-forget, inicia polling até "imagens" aparecer no job
-      if (data.status === "gerando") {
+      // 1. Chama /api/gerar-imagens para cada formato em paralelo
+      const resultados = await Promise.all(
+        formatos.map((formato) =>
+          fetch("/api/gerar-imagens", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ job_id, briefing, formato }),
+          }).then((r) => r.json())
+        )
+      );
+
+      // Verifica se alguma resposta indica fire-and-forget do backend legado
+      const algumGerando = resultados.some((d) => d.status === "gerando");
+      if (algumGerando) {
         pollingStarted = true;
         const poll = setInterval(async () => {
           try {
@@ -161,10 +170,21 @@ export default function AgenteMktPage() {
         return;
       }
 
-      // 3. Fallback: resposta síncrona (caso o endpoint volte a ser bloqueante)
-      setJobAtual((prev) => prev?.id === job_id ? { ...prev, imagens: data.imagens } : prev);
-      setHistorico((prev) => prev.map((j) => j.id === job_id ? { ...j, imagens: data.imagens } : j));
-      setAbaCampanha("imagens");
+      // 2. Todas resolvidas — monta o objeto imagens a partir dos resultados
+      const imagensMerged: Record<string, ImagemGerada> = {};
+      for (const d of resultados) {
+        if (d.formato && d.url) {
+          imagensMerged[d.formato] = { url: d.url, prompt_usado: d.prompt_usado || "", size: d.size || "1024x1024" };
+        }
+      }
+
+      if (Object.keys(imagensMerged).length > 0) {
+        setJobAtual((prev) => prev?.id === job_id ? { ...prev, imagens: imagensMerged } : prev);
+        setHistorico((prev) => prev.map((j) => j.id === job_id ? { ...j, imagens: imagensMerged } : j));
+        setAbaCampanha("imagens");
+      } else {
+        throw new Error("Nenhuma imagem foi gerada");
+      }
     } catch (e: any) {
       setErro(e.message);
     } finally {

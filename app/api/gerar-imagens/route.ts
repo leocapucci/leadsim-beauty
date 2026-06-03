@@ -2,10 +2,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-const OPENAI_KEY   = process.env.OPENAI_API_KEY!;
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
 const PROMPT_TEMPLATE = (briefing: string) =>
   `Brazilian woman 35 years old, radiant skin, natural beauty, serene confident expression, ` +
   `premium aesthetic clinic environment, soft golden lighting, clean white interior, ` +
@@ -13,6 +9,10 @@ const PROMPT_TEMPLATE = (briefing: string) =>
   `Campaign context: ${briefing.slice(0, 400)}`;
 
 export async function POST(req: NextRequest) {
+  const OPENAI_KEY   = process.env.OPENAI_API_KEY!;
+  const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
   try {
     const { job_id, briefing, formato } = await req.json();
 
@@ -82,6 +82,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ job_id, formato, url, imagens: imagensAtualizadas });
 
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Erro interno" }, { status: 500 });
+    console.error("ERRO GERAR IMAGENS:", JSON.stringify(err), err.message, err.stack);
+    return NextResponse.json({ error: err.message || "Erro interno", stack: err.stack }, { status: 500 });
   }
 }

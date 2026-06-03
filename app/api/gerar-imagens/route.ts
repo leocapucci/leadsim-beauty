@@ -16,6 +16,7 @@ export async function POST(req: NextRequest) {
   try {
     const { job_id, briefing, formato } = await req.json();
     console.log("INICIO GERAR IMAGENS", { job_id, briefing: briefing?.slice(0, 50), formato });
+    console.log("OPENAI_KEY presente:", !!process.env.OPENAI_API_KEY, "tamanho:", process.env.OPENAI_API_KEY?.length);
 
     if (!job_id || !briefing || !formato) {
       return NextResponse.json(

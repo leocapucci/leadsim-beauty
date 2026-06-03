@@ -132,6 +132,7 @@ export default function AgenteMktPage() {
 
   async function gerarImagens(job_id: string) {
     setLoadingImagens(true);
+    let pollingStarted = false;
     try {
       // 1. Dispara a geração (retorna imediatamente com status "gerando")
       const res = await fetch(`/api/agente-mkt?action=imagens&job_id=${job_id}`, {
@@ -142,6 +143,7 @@ export default function AgenteMktPage() {
 
       // 2. Se fire-and-forget, inicia polling até "imagens" aparecer no job
       if (data.status === "gerando") {
+        pollingStarted = true;
         const poll = setInterval(async () => {
           try {
             const r = await fetch(`/api/agente-mkt?job_id=${job_id}`);
@@ -156,7 +158,7 @@ export default function AgenteMktPage() {
             }
           } catch {}
         }, 5000);
-        return; // não executa o finally ainda — loading fica ativo durante polling
+        return;
       }
 
       // 3. Fallback: resposta síncrona (caso o endpoint volte a ser bloqueante)
@@ -166,9 +168,7 @@ export default function AgenteMktPage() {
     } catch (e: any) {
       setErro(e.message);
     } finally {
-      // só desliga loading aqui se não entrou no polling (que gerencia o próprio loading)
-      if (!loadingImagens) return;
-      setLoadingImagens(false);
+      if (!pollingStarted) setLoadingImagens(false);
     }
   }
 

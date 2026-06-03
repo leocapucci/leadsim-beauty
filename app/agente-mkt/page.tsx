@@ -48,6 +48,11 @@ export default function AgenteMktPage() {
   const [jobSelecionado, setJobSelecionado] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [copiado, setCopiado] = useState<string | null>(null);
+  const [modalInstagram, setModalInstagram] = useState(false);
+  const [captionInstagram, setCaptionInstagram] = useState("");
+  const [formatoPublicar, setFormatoPublicar] = useState<string>("");
+  const [loadingPublicar, setLoadingPublicar] = useState(false);
+  const [permalinkPublicado, setPermalinkPublicado] = useState<string | null>(null);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const etapaRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -192,6 +197,27 @@ export default function AgenteMktPage() {
       setErro(e.message);
     } finally {
       if (!pollingStarted) setLoadingImagens(false);
+    }
+  }
+
+  async function publicarInstagram() {
+    if (!jobVisivel || !formatoPublicar || !captionInstagram.trim()) return;
+    setLoadingPublicar(true);
+    try {
+      const res = await fetch("/api/publicar-instagram", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ job_id: jobVisivel.id, formato: formatoPublicar, caption: captionInstagram }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao publicar");
+      setPermalinkPublicado(data.permalink);
+      setModalInstagram(false);
+    } catch (e: any) {
+      setErro(e.message);
+      setModalInstagram(false);
+    } finally {
+      setLoadingPublicar(false);
     }
   }
 
@@ -351,6 +377,11 @@ export default function AgenteMktPage() {
                     {copiado === "main" ? "✓ Copiado" : "Copiar"}
                   </button>
                   <button onClick={() => baixarJSON(jobVisivel)} style={{ padding: "8px 16px", borderRadius: 8, fontSize: 13, cursor: "pointer", background: "#16161c", border: "1px solid #2a2a32", color: "#888" }}>↓ JSON</button>
+                  {temImagens && (
+                    <button onClick={() => { setFormatoPublicar(Object.keys(imagensJob)[0] || "instagram"); setCaptionInstagram(jobVisivel.conteudo_final?.slice(0, 2000) || ""); setPermalinkPublicado(null); setModalInstagram(true); }} style={{ padding: "8px 16px", borderRadius: 8, fontSize: 13, cursor: "pointer", background: "#1a0a1a", border: "1px solid #833AB4", color: "#c084fc" }}>
+                      📱 Instagram
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -414,6 +445,44 @@ export default function AgenteMktPage() {
           )}
         </div>
       </div>
+
+      {/* Modal Instagram */}
+      {modalInstagram && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ background: "#16161c", border: "1px solid #2a2a32", borderRadius: 14, padding: "28px 32px", width: 500, maxWidth: "90vw", display: "flex", flexDirection: "column", gap: 18 }}>
+            <div style={{ fontSize: 16, fontWeight: 600, color: "#f0ede8" }}>📱 Publicar no Instagram</div>
+
+            {Object.keys(imagensJob).length > 1 && (
+              <div>
+                <label style={{ fontSize: 11, color: "#555", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 8 }}>Formato da imagem</label>
+                <select value={formatoPublicar} onChange={(e) => setFormatoPublicar(e.target.value)} style={{ width: "100%", background: "#0e0e11", border: "1px solid #2a2a32", borderRadius: 8, padding: "10px 12px", color: "#e8e6e1", fontSize: 14, outline: "none", fontFamily: "inherit" }}>
+                  {Object.keys(imagensJob).map((f) => <option key={f} value={f}>{f}</option>)}
+                </select>
+              </div>
+            )}
+
+            <div>
+              <label style={{ fontSize: 11, color: "#555", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 8 }}>Legenda do post</label>
+              <textarea value={captionInstagram} onChange={(e) => setCaptionInstagram(e.target.value)} rows={6} placeholder="Digite a legenda..."
+                style={{ width: "100%", boxSizing: "border-box", background: "#0e0e11", border: "1px solid #2a2a32", borderRadius: 10, padding: "12px 14px", color: "#e8e6e1", fontSize: 14, resize: "none", outline: "none", lineHeight: 1.5, fontFamily: "inherit" }} />
+              <div style={{ fontSize: 11, color: "#444", marginTop: 4, textAlign: "right" }}>{captionInstagram.length} / 2.200</div>
+            </div>
+
+            {permalinkPublicado && (
+              <div style={{ padding: "10px 14px", background: "#0a1a0a", border: "1px solid #3a6a3a", borderRadius: 8, fontSize: 13, color: "#5a9e6f" }}>
+                ✓ Publicado! <a href={permalinkPublicado} target="_blank" rel="noopener noreferrer" style={{ color: "#5a9e6f" }}>Ver no Instagram</a>
+              </div>
+            )}
+
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button onClick={() => setModalInstagram(false)} style={{ padding: "9px 18px", borderRadius: 8, fontSize: 13, cursor: "pointer", background: "#0e0e11", border: "1px solid #2a2a32", color: "#888", fontFamily: "inherit" }}>Cancelar</button>
+              <button onClick={publicarInstagram} disabled={!captionInstagram.trim() || loadingPublicar} style={{ padding: "9px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: !captionInstagram.trim() || loadingPublicar ? "not-allowed" : "pointer", background: !captionInstagram.trim() || loadingPublicar ? "#1a1a20" : "linear-gradient(135deg, #833AB4, #E1306C)", border: "none", color: !captionInstagram.trim() || loadingPublicar ? "#444" : "#fff", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6 }}>
+                {loadingPublicar ? <><span style={{ display: "inline-block", width: 12, height: 12, border: "2px solid #666", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} /> Publicando...</> : "Publicar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
